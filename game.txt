@@ -1,0 +1,57 @@
+
+ My Clicker Game
+
+ inspiration for level 1 background from: https://www.deviantart.com/thu2000/art/dark-room-pixel-art-851050890
+
+ Stage A (killing ants in your house)
+ ------------------------------------
+ - dialog
+   """
+   the year is 2027. you had big expectations of this year back in 2024.
+   instead, you get an ant infestation epidemic. ants have gotten a lot more adaptive.
+   a person living with upper-class income can afford to avoid ants from infesting any dust, food or sweat for 5 minutes.
+   I, on the other hand have to compromise for a grand 5 seconds.
+   the only way out from this anguish is to buy a place at the centre.
+   i have lots of clients in need of a website to advertise their ant-repellant products.
+   all i need is to survive
+   its difficult to have hope in these times but a little energy and a little strategy and i may be able to make it out.
+
+   you make money every second that you are not busy tending to ants.
+   """
+   
+ 1. ants gather on your items at home, clean the items before they get on your eyelids (active stage)
+ 2. you buy repellant at the store, some ants automatically die (passive + active stage)
+ 3. at some large amount of money saved, you go to buy hotel at skyscraper that claims they are ant-free (to stage B)
+
+ Stage B (sneaking ants to other houses)
+ ---------------------------------------
+ - dialog
+   """
+   you are now ant free. this feels like heaven.
+   the hotel has some next-generation technology that makes the ants pass out for very long durations of time.
+   they are still up in their labs looking for ways to kill an ant, i hear.
+   however, the luxury has changed you.
+   made you afraid of losing it.
+   your new job pays very handsomly and the better you do your job, the more years you secure this life.
+   you are loyal to the work you do and the people who pay you for it.
+   you collect all the ants rendered unconscious by the machine and sneakily dump them outside for a living!
+   
+   
+   the toxic substance used by the machine is not fit to be touched so you get to use drones to go deliver the bags of ants for you.
+   you're in charge of a small street with only 3 inhabited houses.
+   your job involves being careful that you go unnoticed, and this includes not making any of the residents suspicious.
+   unloading too many ants as well as not unloading enough will bring suspicion to you.
+   your shift starts as soon as the shift before you ends. get ready
+   """
+   
+ 1. deposit ants at people's houses. if they get suspicious, you lose your job. the more ants you deposit the more money you make.
+ 2. you buy drones that do some of the depositing for you (more money factor)
+ 3. at some large amount of money
+
+ Stage C ()
+ ----------
+ - dialog
+   """
+   that was a very successful shift, your boss was very proud.
+   
+   """

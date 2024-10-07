@@ -1,0 +1,8 @@
+[package]
+name = "clicker1"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+macroquad = "0.4.12"
+macroquad-particles = "0.2.2"
