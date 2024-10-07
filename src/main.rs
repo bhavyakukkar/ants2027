@@ -1,6 +1,7 @@
 use std::{
-    collections::HashMap,
-    fmt::{self, Display},
+    collections::{HashMap, VecDeque},
+    fmt,
+    slice::Iter,
 };
 
 use macroquad::{
@@ -10,12 +11,11 @@ use macroquad::{
     rand::gen_range,
     shapes::draw_rectangle,
     text::draw_text,
-    texture::{draw_texture, load_texture, FilterMode, Texture2D},
+    texture::{draw_texture, load_texture, Texture2D},
     window::{clear_background, next_frame, Conf},
 };
 
 mod util;
-use macroquad_particles::{AtlasConfig, BlendMode, EmissionShape, Emitter, EmitterConfig};
 pub use util::*;
 
 const GAME_WIDTH: u16 = 960;
@@ -28,7 +28,7 @@ const NOISE: [f32; 100] = [0.0, 0.37567067, 0.9067937, 0.47849727, 0.53902316, 0
 
 fn conf() -> Conf {
     Conf {
-        window_title: "Sokoban".into(),
+        window_title: "My Life with Ants in 2027".into(),
         window_width: GAME_WIDTH as i32,
         window_height: GAME_HEIGHT as i32,
         fullscreen: false,
@@ -47,6 +47,9 @@ enum ResourceName {
     AntSH,
     AntSHCrit,
     AntCrit,
+    Story1,
+    Story2,
+    Story3,
 }
 type Resources = HashMap<ResourceName, Texture2D>;
 
@@ -58,7 +61,6 @@ struct GameState {
 enum Screen {
     MainMenu,
     Stage(Stage, LevelState),
-    DeathAnim(Stage, u8),
     Dialog(Dialog),
 }
 
@@ -76,9 +78,32 @@ impl fmt::Display for Stage {
     }
 }
 
+struct StoryIter {
+    pages: VecDeque<(ResourceName, Vec<String>)>,
+}
+
+impl StoryIter {
+    fn peek(&self) -> Option<(ResourceName, Vec<String>)> {
+        match self.pages.len() {
+            0 => None,
+            _ => Some(self.pages.get(0).unwrap().clone()),
+        }
+    }
+}
+
+impl Iterator for StoryIter {
+    type Item = (ResourceName, Vec<String>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pages.pop_front()
+    }
+}
+
 enum Dialog {
     Lost(Stage),
     Won(Stage, Stage),
+    Story(StoryIter, Stage),
+    Thanks,
 }
 
 #[derive(Clone)]
@@ -95,7 +120,6 @@ struct DirtyObj {
 enum Difficulty {
     Easy,
     Medium,
-    Hard,
 }
 
 #[derive(Clone)]
@@ -116,7 +140,7 @@ fn manage_level(
     tick: usize,
     duration: &mut Option<usize>,
 ) -> Option<Screen> {
-    static MEDIUM_DURATION: usize = 5 * 60 * 60;
+    static MEDIUM_DURATION: usize = 4 * 60 * 60;
     use ResourceName::*;
     //draw scene
     draw_texture(resources.get(&level_state.scene).unwrap(), 0.0, 0.0, WHITE);
@@ -131,7 +155,6 @@ fn manage_level(
                 *duration = Some(0);
             }
         },
-        Difficulty::Hard => todo!(),
     }
 
     let mut objects_complete_dirty = 0;
@@ -191,10 +214,19 @@ fn manage_level(
                         ),
                     },
                 },
-                Difficulty::Hard => todo!(),
             };
 
-            let (x, y) = match lerp_ant(tick, &object, start, end, idx, true) {
+            let (x, y) = match lerp_ant(
+                tick,
+                &object,
+                start,
+                end,
+                idx,
+                match level_state.difficulty {
+                    Difficulty::Easy => true,
+                    Difficulty::Medium => false,
+                },
+            ) {
                 Some(p) => p,
                 None => {
                     continue;
@@ -218,17 +250,12 @@ fn manage_level(
                 // let rep_effect = (2.0 + (5.0 / level_state.repellants as f32)) as usize;
                 tick % 7 == 0
             }
-            Difficulty::Hard => {
-                let rep_effect = (level_state.repellants / 10) as usize;
-                tick % (2 + rep_effect) == 0
-            }
         };
 
         if update_dirtiness {
             object.dirtiness = match level_state.difficulty {
                 Difficulty::Easy => object.dirtiness.checked_add(1).unwrap_or(object.dirtiness),
                 Difficulty::Medium => object.dirtiness.checked_sub(1).unwrap_or(object.dirtiness),
-                Difficulty::Hard => todo!(),
             };
         }
 
@@ -248,16 +275,14 @@ fn manage_level(
                         object.dirtiness =
                             object.dirtiness.checked_add(1).unwrap_or(object.dirtiness);
                     }
-                    Difficulty::Hard => todo!(),
                 }
                 // make money when mouse button down
                 match level_state.difficulty {
                     Difficulty::Easy => {}
                     Difficulty::Medium => {
-                        let rep_effect = (level_state.repellants as f32).exp();
+                        let rep_effect = 2.0 * (level_state.repellants as f32).ln();
                         level_state.money += 0.5 + rep_effect;
                     }
-                    Difficulty::Hard => todo!(),
                 }
             }
         } else {
@@ -267,7 +292,6 @@ fn manage_level(
                     level_state.money += 0.1;
                 }
                 Difficulty::Medium => {}
-                Difficulty::Hard => todo!(),
             }
             // level_state.money += match level_state.difficulty {
             //     Difficulty::Easy => 0.1,
@@ -288,7 +312,6 @@ fn manage_level(
                     objects_complete_dirty += 1;
                 }
             }
-            Difficulty::Hard => todo!(),
         }
     }
 
@@ -367,11 +390,66 @@ fn manage_level(
     // change in state
     if level_state.money > level_state.money_goal {
         // You Won
-        Some(Screen::Dialog(Dialog::Won(Stage::A1, Stage::B1)))
+        // Some(Screen::Dialog(Dialog::Won(Stage::A1, Stage::B1)))
+        match level_state.difficulty {
+            Difficulty::Easy => 
+        Some(Screen::Dialog(Dialog::Story(StoryIter{
+            pages: vec![
+                (Story3, vec![
+                    "well done, you did it. you earned enough money to move to the center.".to_owned()]
+                ),
+                (Story3, vec![
+                    "you are now ant free. this feels like heaven.".to_owned()]
+                ),
+                (Story3, vec![
+                    "the center has some next-generation technology that makes the ants pass out".to_owned(),
+                    "for very long durations of time.".to_owned()]
+                ),
+                (Story3, vec![
+                    "they are still up in their labs looking for ways to kill an ant, i hear.".to_owned()]
+                ),
+                (Story3, vec![
+                    "however, the luxury has changed you.".to_owned()]
+                ),
+                (Story3, vec![
+                    "made you afraid of losing it.".to_owned()]
+                ),
+                (Story3, vec![
+                    "your new job pays very handsomly and the better you do your job,".to_owned(),
+                    "the more years you secure this life.".to_owned()]
+                ),
+                (Story3, vec![
+                    "you are loyal to the work you do and the people who pay you for it.".to_owned()]
+                ),
+                (Story3, vec![
+                    "you collect all the ants rendered unconscious by the machine and".to_owned(),
+                    "sneakily dump them outside for a living!".to_owned()]
+                ),
+                (Story3, vec![
+                    "the toxic substance used by the machine is not fit to be touched".to_owned(),
+                    "so you get to use drones to go deliver the bags of ants for you.".to_owned()]
+                ),
+                (Story3, vec![
+                    "you're in charge of a small street with only 3 inhabited houses.".to_owned()]
+                ),
+                (Story3, vec![
+                    "your job involves being careful that you go unnoticed, and this includes".to_owned(),
+                    "not making any of the residents suspicious.".to_owned()]
+                ),
+                (Story3, vec![
+                    "unloading too many ants as well as not unloading enough will bring suspicion.".to_owned()]
+                ),
+                (Story3, vec![
+                    "your shift starts as soon as the shift before you ends. get ready".to_owned()]
+                ),
+            ].into()
+        }, Stage::B1))),
+            Difficulty::Medium => Some(Screen::Dialog(Dialog::Thanks)),
+        }
     } else if level_state.difficulty == Difficulty::Easy && num_objects == objects_complete_dirty {
         // You Lost
         // Some(Screen::DeathAnim(Stage::A1, 0))
-        Some(Screen::Dialog(Dialog::Lost(Stage::B1)))
+        Some(Screen::Dialog(Dialog::Lost(Stage::A1)))
     } else if level_state.difficulty == Difficulty::Medium
         && (objects_complete_dirty >= 1 || duration.filter(|d| *d > MEDIUM_DURATION).is_some())
     {
@@ -441,44 +519,63 @@ fn lerp_ant(
 
 #[macroquad::main(conf)]
 async fn main() {
+    use ResourceName::*;
     let mut tick: usize = 0;
-    let mut death_particles: Option<Emitter> = None;
     let mut duration = None;
 
+    let story1 = StoryIter{pages: vec![
+        (Story2, vec![
+            "the year is 2027. you had big expectations of this year back in 2024.".to_owned()
+        ]),
+        (Story2, vec![
+            "instead, you get an ant infestation epidemic. ants have gotten a lot more adaptive.".to_owned()
+        ]),
+        (Story2, vec![
+            "a person living with upper-class income can afford to avoid ants from infesting any".to_owned(),
+            "dust, food or sweat for 5 minutes.".to_owned()
+        ]),
+        (Story2, vec![
+            "I, on the other hand have to compromise for a grand 5 seconds.".to_owned()
+        ]),
+        (Story2, vec![
+            "the only way out from this anguish is to buy a place at the centre.".to_owned()
+        ]),
+        (Story2, vec![
+            "i have lots of clients in need of a website to advertise their".to_owned(),
+            "ant-repellant products.".to_owned()
+        ]),
+        (Story2, vec![
+            "all i need is to survive".to_owned()
+        ]),
+        (Story2, vec![
+            "its difficult to have hope in these times but a little energy and a little strategy".to_owned(),
+            "and i may be able to make it out.".to_owned()
+        ]),
+        (Story2, vec![
+            "i can buy repellant to slow down how fast these bad boys multiply.".to_owned(),
+        ]),
+        (Story2, vec![
+            "as long as they dont filth all of my belongings, ill make it.".to_owned(),
+        ]),
+        (Story2, vec![
+            "i make money every second that i am not busy tending to ants.".to_owned()
+        ]),
+    ].into()};
+
     // resources
+    #[rustfmt::skip]
     let resources = Resources::from([
-        (
-            ResourceName::ImageA1,
-            load_texture("./gimp/bg_a_1.png").await.unwrap(),
-        ),
-        (
-            ResourceName::ImageB1,
-            load_texture("./gimp/bg_b_1.png").await.unwrap(),
-        ),
-        (
-            ResourceName::Ant,
-            load_texture("./gimp/ant2.png").await.unwrap(),
-        ),
-        (
-            ResourceName::AntCrit,
-            load_texture("./gimp/ant_crit.png").await.unwrap(),
-        ),
-        (
-            ResourceName::AntSV,
-            load_texture("./gimp/ant3.png").await.unwrap(),
-        ),
-        (
-            ResourceName::AntSVCrit,
-            load_texture("./gimp/ant3_crit.png").await.unwrap(),
-        ),
-        (
-            ResourceName::AntSH,
-            load_texture("./gimp/ant4.png").await.unwrap(),
-        ),
-        (
-            ResourceName::AntSHCrit,
-            load_texture("./gimp/ant3_crit.png").await.unwrap(),
-        ),
+        (ImageA1, load_texture("./gimp/bg_a_1.png").await.unwrap()),
+        (ImageB1, load_texture("./gimp/bg_b_1.png").await.unwrap()),
+        (Ant, load_texture("./gimp/ant2.png").await.unwrap()),
+        (AntCrit, load_texture("./gimp/ant_crit.png").await.unwrap()),
+        (AntSV, load_texture("./gimp/ant3.png").await.unwrap()),
+        (AntSVCrit, load_texture("./gimp/ant3_crit.png").await.unwrap()),
+        (AntSH, load_texture("./gimp/ant4.png").await.unwrap()),
+        (AntSHCrit, load_texture("./gimp/ant3_crit.png").await.unwrap()),
+        (Story1, load_texture("./gimp/story3.png").await.unwrap()),
+        (Story2, load_texture("./gimp/story1.png").await.unwrap()),
+        (Story3, load_texture("./gimp/story3.png").await.unwrap()),
     ]);
 
     let levels = HashMap::from([
@@ -543,10 +640,10 @@ async fn main() {
                     // house 2
                     DirtyObj::new(
                         162,
-                        LineSegment::new((563.0, 201.0), (563.0, 257.0)),
-                        LineSegment::new((673.0, 260.0), (673.0, 198.0)),
+                        LineSegment::new((674.0, 196.0), (674.0, 262.0)),
+                        LineSegment::new((614.0, 220.0), (614.0, 222.0)),
                         800,
-                        191,
+                        0,
                     ),
                     // house 3
                     DirtyObj::new(
@@ -564,7 +661,9 @@ async fn main() {
     // levels
     let mut state = GameState {
         // screen: Screen::DeathAnim(Stage::A1, 0),
-        screen: Screen::Stage(Stage::B1, levels.get(&Stage::B1).unwrap().clone()),
+        // screen: Screen::Stage(Stage::B1, levels.get(&Stage::B1).unwrap().clone()),
+        screen: Screen::Dialog(Dialog::Story(story1, Stage::A1)),
+        // screen: Screen::Dialog(Dialog::Thanks),
         levels,
     };
 
@@ -595,7 +694,10 @@ async fn main() {
                     }
                 }
                 Dialog::Lost(stage) => {
-                    draw_text(&format!("You lost stage {stage}"), 10.0, 20.0, 20.0, WHITE);
+                    draw_text(match stage {
+                        Stage::A1 => "You lost. There were two many ants. You died a disgusting death. Click to try again.",
+                        Stage::B1 => "You lost. The people got suspicious and you were fired from your job. Click to try again."
+                    }, 10.0, 20.0, 20.0, WHITE);
                     if is_mouse_button_pressed(MouseButton::Left) {
                         Some(Screen::Stage(
                             *stage,
@@ -605,93 +707,35 @@ async fn main() {
                         None
                     }
                 }
-            },
-            Screen::Stage(stage, ref mut level_state) => {
-                manage_level(level_state, &resources, tick, &mut duration)
-            }
-            Screen::DeathAnim(stage, progress) => {
-                let next_screen;
-                draw_texture(
-                    resources
-                        .get(&state.levels.get(&stage).unwrap().scene)
-                        .unwrap(),
-                    0.0,
-                    0.0,
-                    WHITE,
-                );
-
-                if let Some(particles) = &mut death_particles {
-                    particles.draw((480.0, 540.0).into());
-                    if *progress > 253 {
-                        particles.config.emitting = false;
-                        death_particles = None;
-
-                        next_screen = Some(Screen::Dialog(Dialog::Lost(*stage)));
+                Dialog::Story(story_iter, next_stage) => {
+                    if let Some((resource_name, page)) = story_iter.peek() {
+                        draw_texture(resources.get(&resource_name).unwrap(), 0.0, 0.0, WHITE);
+                        for (idx, line) in page.iter().enumerate() {
+                            draw_text(&line, 30.0, 40.0 + idx as f32 * 30.0, 25.0, WHITE);
+                        }
+                        if is_mouse_button_pressed(MouseButton::Left) {
+                            let _ = story_iter.next();
+                            None
+                        } else {
+                            None
+                        }
                     } else {
-                        *progress += 2;
-                        particles.config.amount += 10;
-
-                        next_screen = None;
-                    }
-                } else {
-                    death_particles = Some(Emitter::new(EmitterConfig {
-                        emission_shape: EmissionShape::Rect {
-                            width: 960.0,
-                            height: 0.0,
-                        },
-                        texture: Some(resources.get(&ResourceName::Ant).unwrap().clone()),
-                        lifetime: 2.3,
-                        amount: 10,
-                        initial_direction_spread: 0.,
-                        initial_velocity: 300.0,
-                        // atlas: Some(AtlasConfig::new(4, 4, 8..)),
-                        size: 8.0,
-                        // blend_mode: BlendMode::Additive,
-                        ..Default::default()
-                    }));
-                    *progress = 0;
-                    next_screen = None;
-                }
-
-                /*
-                let screen_top = LineSegment::new((0.0, 0.0), (960.0, 0.0));
-                let screen_btm = LineSegment::new((0.0, 540.0), (960.0, 540.0));
-                for (idx, (start, end)) in screen_btm
-                    .points_on(20000)
-                    .zip(screen_top.points_on(20000))
-                    .enumerate()
-                {
-                    let pos = lerp_ant(
-                        tick,
-                        &DirtyObj {
-                            dirtiness: MAX_DIRTINESS,
-                            start: screen_btm.clone(),
-                            end: screen_top.clone(),
-                            amount: 1_000_000,
-                            distance: (0.0, 540.0).into(),
-                            chance_bidir: 0,
-                        },
-                        start,
-                        end,
-                        idx,
-                        true,
-                    );
-                    if let Some((x, y)) = pos {
-                        println!("{},{}", x, y);
-                        draw_texture(resources.get(&ResourceName::Ant).unwrap(), x, y, WHITE);
+                        Some(Screen::Stage(
+                            *next_stage,
+                            state.levels.get(next_stage).unwrap().clone(),
+                        ))
                     }
                 }
-                */
-                draw_text(&format!("You lost stage {stage}"), 10.0, 20.0, 20.0, WHITE);
-                // if is_mouse_button_pressed(MouseButton::Left) {
-                //     Some(Screen::Stage(
-                //         *stage,
-                //         state.levels.get(stage).unwrap().clone(),
-                //     ))
-                // } else {
-                //     None
-                // }
-                next_screen
+                Dialog::Thanks => {
+                    draw_texture(resources.get(&Story2).unwrap(), 0.0, 0.0, WHITE);
+                    draw_text("You had a great shift.", 60.0, 80.0, 35.0, WHITE);
+                    draw_text("Thanks for playing.", 60.0, 120.0, 35.0, WHITE);
+                    draw_text("Made by nigel", 60.0, 200.0, 30.0, WHITE);
+                    None
+                }
+            },
+            Screen::Stage(_stage, ref mut level_state) => {
+                manage_level(level_state, &resources, tick, &mut duration)
             }
         };
         if let Some(next_screen) = next_screen {
