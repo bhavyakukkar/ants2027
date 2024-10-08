@@ -453,6 +453,7 @@ fn manage_level(
     } else if level_state.difficulty == Difficulty::Medium
         && (objects_complete_dirty >= 1 || duration.filter(|d| *d > MEDIUM_DURATION).is_some())
     {
+        *duration = Some(0);
         Some(Screen::Dialog(Dialog::Lost(Stage::B1)))
     } else {
         None
